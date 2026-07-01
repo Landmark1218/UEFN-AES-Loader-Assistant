@@ -4,9 +4,9 @@ using System.Text.RegularExpressions;
 namespace UEFNMapInstaller;
 
 /// <summary>
-/// Epic device-auth フローでトークンを取得・更新するサービス。
-/// device_auth.json がなければデバイスコードログインを促し、
-/// 以降はデバイス認証情報でサイレントに更新します。
+/// Service that acquires and refreshes tokens via the Epic device-auth flow.
+/// Prompts device-code login if device_auth.json is absent,
+/// then silently refreshes using stored device credentials.
 /// </summary>
 internal sealed class EpicAuthService
 {
@@ -21,15 +21,15 @@ internal sealed class EpicAuthService
         Directory.CreateDirectory(dataDir);
     }
 
-    // ── 公開 API ──────────────────────────────────────────────────────
+    // -- Public API --
 
-    /// <summary>Content Service 向けのアクセストークンを返す。期限切れなら自動更新。</summary>
+    /// <summary>Returns an access token for Content Service. Auto-refreshes when expired.</summary>
     public async Task<string> GetContentAccessTokenAsync(CancellationToken ct = default)
     {
         var deviceAuth = LoadDeviceAuth();
         if (deviceAuth is null)
         {
-            Console.WriteLine("デバイス認証情報が見つかりません。初回ログインを開始します。");
+            Console.WriteLine("Device credentials not found. Starting first-time login.");
             deviceAuth = await DeviceCodeLoginAsync(ct);
         }
 
@@ -39,27 +39,27 @@ internal sealed class EpicAuthService
         }
         catch (EpicApiException ex)
         {
-            Console.WriteLine($"トークン更新に失敗しました: {ex.Message}");
-            Console.WriteLine("再ログインを開始します…");
+            Console.WriteLine($"Token refresh failed: {ex.Message}");
+            Console.WriteLine("Re-login started...");
             deviceAuth = await DeviceCodeLoginAsync(ct);
             return await ExchangeToContentTokenAsync(deviceAuth, ct);
         }
     }
 
-    // ── デバイスコードログイン ────────────────────────────────────────
+    // -- Device-code login --
 
     private async Task<DeviceAuthRecord> DeviceCodeLoginAsync(CancellationToken ct)
     {
-        // 1. client_credentials でクライアントトークン取得
+        // 1. Fetch client token via client_credentials
         var clientToken = await EpicHttp.FormRequestAsync<TokenResponse>(
             $"{EpicEndpoints.AccountBase}/account/api/oauth/token",
             new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
             EpicEndpoints.JsDeviceAuthBasic, ct);
 
         if (string.IsNullOrEmpty(clientToken.AccessToken))
-            throw new EpicApiException("client_credentials でアクセストークンが返りませんでした");
+            throw new EpicApiException("client_credentials returned no access token");
 
-        // 2. デバイス認証URL取得
+        // 2. Fetch device auth URL
         var deviceResp = await EpicHttp.PostJsonAsync<TokenResponse>(
             $"{EpicEndpoints.AccountBase}/account/api/oauth/deviceAuthorization",
             new { prompt = "login" },
@@ -69,20 +69,20 @@ internal sealed class EpicAuthService
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("======================================================");
-        Console.WriteLine(" Epicアカウントでの認証が必要です");
+        Console.WriteLine(" Epic account authentication required");
         Console.WriteLine("======================================================");
         Console.ResetColor();
-        Console.WriteLine($" 以下のURLをブラウザで開いてログインしてください:\n");
+        Console.WriteLine($" Open the URL below in your browser and log in:\n");
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"  {verifyUri}");
         Console.ResetColor();
-        Console.WriteLine("\n ログイン後、このウィンドウが自動的に続行します...");
+        Console.WriteLine("\n After logging in, this window will continue automatically...");
         Console.WriteLine();
 
         if (string.IsNullOrEmpty(deviceResp.DeviceCode))
-            throw new EpicApiException("device_code が取得できませんでした");
+            throw new EpicApiException("Failed to obtain device_code");
 
-        // 3. ポーリング
+        // 3. Polling
         int expiresIn = deviceResp.ExpiresIn > 0 ? deviceResp.ExpiresIn : 300;
         int interval  = deviceResp.Interval  > 0 ? deviceResp.Interval  : 5;
         var deadline  = DateTime.UtcNow.AddSeconds(expiresIn);
@@ -113,14 +113,14 @@ internal sealed class EpicAuthService
         }
 
         if (userToken is null || string.IsNullOrEmpty(userToken.AccessToken))
-            throw new EpicApiException("デバイスコードログインがタイムアウトしました");
+            throw new EpicApiException("Device-code login timed out");
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"ログイン成功: {userToken.DisplayName ?? userToken.AccountId}");
+        Console.WriteLine($"Login successful: {userToken.DisplayName ?? userToken.AccountId}");
         Console.ResetColor();
 
-        // 4. exchange_code → Android クライアントトークン
+        // 4. exchange_code -> Android client token
         var exchangeCode = await GetExchangeCodeAsync(userToken.AccessToken, ct);
         var androidToken = await EpicHttp.FormRequestAsync<TokenResponse>(
             $"{EpicEndpoints.AccountBase}/account/api/oauth/token",
@@ -132,16 +132,16 @@ internal sealed class EpicAuthService
             EpicEndpoints.AndroidBasic, ct);
 
         if (string.IsNullOrEmpty(androidToken.AccessToken) || string.IsNullOrEmpty(userToken.AccountId))
-            throw new EpicApiException("Android 交換トークンの取得に失敗しました");
+            throw new EpicApiException("Failed to obtain Android exchange token");
 
-        // 5. device_auth 認証情報を作成・保存
+        // 5. Create and save device_auth credentials
         var deviceCreated = await EpicHttp.PostJsonAsync<DeviceAuthCreatedRecord>(
             $"{EpicEndpoints.AccountBase}/account/api/public/account/{Uri.EscapeDataString(userToken.AccountId)}/deviceAuth",
             new { },
             androidToken.AccessToken, ct);
 
         if (string.IsNullOrEmpty(deviceCreated.DeviceId) || string.IsNullOrEmpty(deviceCreated.Secret))
-            throw new EpicApiException("deviceAuth の作成に失敗しました");
+            throw new EpicApiException("Failed to create deviceAuth");
 
         var record = new DeviceAuthRecord
         {
@@ -151,15 +151,15 @@ internal sealed class EpicAuthService
             DisplayName = userToken.DisplayName ?? userToken.AccountId,
         };
         SaveDeviceAuth(record);
-        Console.WriteLine($"デバイス認証情報を保存しました: {DeviceAuthPath}");
+        Console.WriteLine($"Device credentials saved: {DeviceAuthPath}");
         return record;
     }
 
-    // ── 認証情報 → Content Service トークン ─────────────────────────
+    // -- Credentials -> Content Service token --
 
     private async Task<string> ExchangeToContentTokenAsync(DeviceAuthRecord record, CancellationToken ct)
     {
-        // device_auth グラントで Androidトークン取得
+        // Fetch Android token via device_auth grant
         var authToken = await EpicHttp.FormRequestAsync<TokenResponse>(
             $"{EpicEndpoints.AccountBase}/account/api/oauth/token",
             new Dictionary<string, string>
@@ -173,9 +173,9 @@ internal sealed class EpicAuthService
             EpicEndpoints.AndroidBasic, ct);
 
         if (string.IsNullOrEmpty(authToken.AccessToken))
-            throw new EpicApiException("device_auth トークンレスポンスにアクセストークンがありません");
+            throw new EpicApiException("device_auth token response contains no access token");
 
-        // exchange_code → Content Service トークンに交換
+        // Exchange exchange_code for Content Service token
         var exchangeCode = await GetExchangeCodeAsync(authToken.AccessToken, ct);
         var contentToken = await EpicHttp.FormRequestAsync<TokenResponse>(
             $"{EpicEndpoints.AccountBase}/account/api/oauth/token",
@@ -187,7 +187,7 @@ internal sealed class EpicAuthService
             EpicEndpoints.JsContentExchangeBasic, ct);
 
         if (string.IsNullOrEmpty(contentToken.AccessToken))
-            throw new EpicApiException("Content Service 用トークンの取得に失敗しました");
+            throw new EpicApiException("Failed to obtain Content Service token");
 
         return contentToken.AccessToken;
     }
@@ -199,12 +199,12 @@ internal sealed class EpicAuthService
             accessToken, ct);
 
         if (string.IsNullOrEmpty(data.Code))
-            throw new EpicApiException("exchange レスポンスに code がありません");
+            throw new EpicApiException("exchange response contains no code");
 
         return data.Code;
     }
 
-    // ── device_auth.json 読み書き ──────────────────────────────────
+    // -- device_auth.json read/write --
 
     private DeviceAuthRecord? LoadDeviceAuth()
     {

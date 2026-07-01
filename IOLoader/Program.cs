@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using UEFNMapInstaller;
 
-// ── 初期化 ────────────────────────────────────────────────────────────────
+// -- Initialization --
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 Console.Title = "UEFN Map Installer";
 
@@ -13,8 +13,8 @@ if (OperatingSystem.IsWindows() && !IsRunningAsAdministrator())
 {
     if (TryRelaunchAsAdministrator())
         return 0;
-    Warn("管理者権限が無いため、書き込みが必要な処理で失敗する可能性があります。");
-    Warn("可能であればこのツールを右クリック→「管理者として実行」してください。");
+    Warn("Not running as administrator; write operations may fail.");
+    Warn("If possible, right-click the tool and select \"Run as administrator\".");
 }
 
 var quietEnv = new Dictionary<string, string> { ["UEFN_QUIET"] = "1" };
@@ -24,14 +24,14 @@ var exeDir   = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
 var scriptPath = Path.Combine(exeDir, "uefn_downloader.py");
 if (!File.Exists(scriptPath))
 {
-    Error($"uefn_downloader.py が見つかりません: {scriptPath}");
+    Error($"uefn_downloader.py not found: {scriptPath}");
     Pause(); return 1;
 }
 
 var dataDir = Path.Combine(exeDir, "Data");
 Directory.CreateDirectory(dataDir);
 
-// ── Fortnite パスを先に特定 ──────────────────────────────────────────────
+// -- Locate Fortnite path first --
 string paksFolder;
 string? targetExe;
 try
@@ -48,43 +48,43 @@ catch (Exception ex)
 var win64Dir = targetExe is not null ? Path.GetDirectoryName(targetExe) : null;
 var iniPath  = win64Dir is not null ? Path.Combine(win64Dir, "DecrypterSettings.ini") : null;
 
-// GameFeatures の親ディレクトリ
+// Parent directory of GameFeatures
 var contentDir      = Directory.GetParent(paksFolder)?.FullName;
 var gameDir         = contentDir is not null ? Directory.GetParent(contentDir)?.FullName : null;
 var gameFeaturesDir = gameDir is not null ? Path.Combine(gameDir, "Plugins", "GameFeatures") : null;
 
-// installed_plugins.json: インストールした uplugin フォルダ名を管理する
+// installed_plugins.json: tracks installed uplugin folder names
 var installedPluginsJson = Path.Combine(dataDir, "installed_plugins.json");
 
-// ── メニュー ─────────────────────────────────────────────────────────────
+// -- Menu --
 Console.WriteLine();
 Console.WriteLine("╔══════════════════════════════════╗");
 Console.WriteLine("║      UEFN Map Installer          ║");
 Console.WriteLine("╠══════════════════════════════════╣");
-Console.WriteLine("║  1  マップをインストール         ║");
-Console.WriteLine("║  2  インストール済みデータを削除 ║");
+Console.WriteLine("║  1  Install map                  ║");
+Console.WriteLine("║  2  Remove installed data        ║");
 Console.WriteLine("╚══════════════════════════════════╝");
 Console.WriteLine();
 
 int menuChoice = 0;
 while (menuChoice is not 1 and not 2)
 {
-    Console.Write("選択 [1/2]: ");
+    Console.Write("Select [1/2]: ");
     var key = Console.ReadLine()?.Trim();
     if (key == "1") menuChoice = 1;
     else if (key == "2") menuChoice = 2;
-    else Error("1 か 2 を入力してください。");
+    else Error("Please enter 1 or 2.");
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  モード 2: インストール済みデータの削除
+//  Mode 2: Remove installed data
 // ════════════════════════════════════════════════════════════════════════════
 if (menuChoice == 2)
 {
     Console.WriteLine();
-    Console.WriteLine("── アンインストール ────────────────────────────────");
+    Console.WriteLine("-- Uninstall ───────────────────────────────────────");
 
-    // paks フォルダから plugin.* を削除
+    // Remove plugin.* from paks folder
     var pakFiles = new[] { "plugin.pak", "plugin.ucas", "plugin.utoc", "plugin.sig" };
     int removedPak = 0;
     foreach (var name in pakFiles)
@@ -100,23 +100,23 @@ if (menuChoice == 2)
         }
         catch (Exception ex)
         {
-            Warn($"{path} の削除に失敗しました: {ex.Message}");
+            Warn($"{path}: deletion failed: {ex.Message}");
         }
     }
     if (removedPak == 0)
-        Console.WriteLine("[DEL] paks フォルダに plugin.* ファイルは見つかりませんでした。");
+        Console.WriteLine("[DEL] No plugin.* files found in paks folder.");
 
-    // installed_plugins.json からフォルダ一覧を取得して削除
+    // Fetch folder list from installed_plugins.json and remove them
     var pluginFolders = LoadInstalledPlugins(installedPluginsJson);
     if (pluginFolders.Count == 0)
     {
-        Console.WriteLine("[DEL] 記録された GameFeatures フォルダはありません。");
+        Console.WriteLine("[DEL] No recorded GameFeatures folders.");
     }
     else if (gameFeaturesDir is null)
     {
-        Warn("GameFeatures フォルダのパスを特定できませんでした。手動で削除してください。");
+        Warn("Could not determine GameFeatures folder path. Please remove manually.");
         foreach (var f in pluginFolders)
-            Warn($"  削除対象: {f}");
+            Warn($"  To remove: {f}");
     }
     else
     {
@@ -126,8 +126,8 @@ if (menuChoice == 2)
             var fullPath = Path.Combine(gameFeaturesDir, folderName);
             if (!Directory.Exists(fullPath))
             {
-                Console.WriteLine($"[DEL] 既に存在しません: {fullPath}");
-                // json からも除去
+                Console.WriteLine($"[DEL] Already gone: {fullPath}");
+                // Also remove from json
                 continue;
             }
             try
@@ -137,8 +137,8 @@ if (menuChoice == 2)
             }
             catch (Exception ex)
             {
-                Warn($"{fullPath} の削除に失敗しました: {ex.Message}");
-                remaining.Add(folderName); // 削除失敗したものは記録に残す
+                Warn($"{fullPath}: deletion failed: {ex.Message}");
+                remaining.Add(folderName); // keep in record if deletion failed
             }
         }
         SaveInstalledPlugins(installedPluginsJson, remaining);
@@ -146,24 +146,24 @@ if (menuChoice == 2)
 
     Console.WriteLine();
     Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("削除処理が完了しました。");
+    Console.WriteLine("Removal complete.");
     Console.ResetColor();
     Pause();
     return 0;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  モード 1: マップのインストール
+//  Mode 1: Install map
 // ════════════════════════════════════════════════════════════════════════════
 
 if (iniPath is null)
-    Warn($"{FortnitePathLocator.UnrealEditorExeName} が見つからないため DecrypterSettings.ini の更新をスキップします。");
+    Warn($"{FortnitePathLocator.UnrealEditorExeName} not found; skipping DecrypterSettings.ini update.");
 
-// ── マップコード入力 ──────────────────────────────────────────────────────
+// -- Map code input --
 string mapCode;
 while (true)
 {
-    Console.Write("マップコードを入力してください (例: 1234-5678-9012): ");
+    Console.Write("Enter map code (e.g. 1234-5678-9012): ");
     var raw    = Console.ReadLine()?.Trim() ?? "";
     var digits = Regex.Replace(raw, @"\D", "");
     if (digits.Length == 12)
@@ -171,10 +171,10 @@ while (true)
         mapCode = $"{digits[..4]}-{digits[4..8]}-{digits[8..]}";
         break;
     }
-    Error("12桁の数字で入力してください。");
+    Error("Please enter a 12-digit number.");
 }
 
-// ── ログイン (初回のみ) ───────────────────────────────────────────────────
+// -- Login (first run only) --
 var deviceAuthPath = Path.Combine(dataDir, "auth", "device_auth.json");
 if (!File.Exists(deviceAuthPath))
 {
@@ -183,12 +183,12 @@ if (!File.Exists(deviceAuthPath))
         exeDir, quietEnv);
     if (loginCode != 0)
     {
-        Error($"ログインに失敗しました (終了コード {loginCode})");
+        Error($"Login failed (exit code {loginCode})");
         Pause(); return 1;
     }
 }
 
-// ── AES キー取得 → DecrypterSettings.ini ─────────────────────────────────
+// -- Fetch AES key -> DecrypterSettings.ini --
 var authDir   = Path.Combine(dataDir, "auth");
 var mapOutDir = Path.Combine(dataDir, mapCode);
 int aesCode   = PythonRunner.Run(scriptPath,
@@ -196,7 +196,7 @@ int aesCode   = PythonRunner.Run(scriptPath,
     exeDir, quietEnv);
 
 if (aesCode != 0)
-    Warn("AES キーの取得に失敗しました (非暗号化マップの場合は問題ありません)。");
+    Warn("Failed to fetch AES key (no issue if the map is unencrypted).");
 else if (iniPath is not null)
 {
     var keychain = TryBuildKeychain(Path.Combine(mapOutDir, "module_key_v4.json"));
@@ -204,12 +204,12 @@ else if (iniPath is not null)
     {
         WriteIni(iniPath, "ContentKeys", "Key0", keychain);
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"[INI] Key0 を書き込みました: {iniPath}");
+        Console.WriteLine($"[INI] Key0 written: {iniPath}");
         Console.ResetColor();
     }
 }
 
-// ── Signature 取得 → DecrypterSettings.ini ───────────────────────────────
+// -- Fetch Signature -> DecrypterSettings.ini --
 if (iniPath is not null)
 {
     var engineDll = win64Dir is not null
@@ -217,7 +217,7 @@ if (iniPath is not null)
         : null;
 
     if (engineDll is null || !File.Exists(engineDll))
-        Warn("UnrealEditorFortnite-Engine-Win64-Shipping.dll が見つからないため Signature の更新をスキップします。");
+        Warn("UnrealEditorFortnite-Engine-Win64-Shipping.dll not found; skipping Signature update.");
     else
     {
         var sigCachePath   = Path.Combine(dataDir, "signature_cache.json");
@@ -225,9 +225,9 @@ if (iniPath is not null)
         var currentVersion = FetchGameVersion(scriptPath, exeDir);
 
         if (currentVersion is not null)
-            Console.WriteLine($"[SIG] 現在のゲームバージョン: {currentVersion}");
+            Console.WriteLine($"[SIG] Current game version: {currentVersion}");
         else
-            Warn("ゲームバージョンの取得に失敗しました。DLL を再スキャンします。");
+            Warn("Failed to get game version. Re-scanning DLL.");
 
         string? signature   = null;
         string? functionRva = null;
@@ -242,7 +242,7 @@ if (iniPath is not null)
             signature   = sigCache!.Signature;
             functionRva = sigCache.FunctionRva;
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[SIG] ゲームバージョンに変更なし ({currentVersion}) → キャッシュ済み Signature を再利用します (スキャン省略)");
+            Console.WriteLine($"[SIG] Game version unchanged ({currentVersion}) -> Reusing cached Signature (scan skipped)");
             Console.WriteLine($"[SIG] Signature (cache): {signature}");
             Console.ResetColor();
         }
@@ -264,7 +264,7 @@ if (iniPath is not null)
 
             if (sigCode != 0 || string.IsNullOrEmpty(signature))
             {
-                Warn("Signature の取得に失敗しました。DecrypterSettings.ini の Signature は手動で設定してください。");
+                Warn("Failed to retrieve Signature. Please set Signature in DecrypterSettings.ini manually.");
                 signature = null;
             }
             else if (currentVersion is not null)
@@ -276,7 +276,7 @@ if (iniPath is not null)
                     FunctionRva  = functionRva,
                     UpdatedAtUtc = DateTime.UtcNow.ToString("O"),
                 });
-                Console.WriteLine($"[SIG] キャッシュを更新しました: {sigCachePath}");
+                Console.WriteLine($"[SIG] Cache updated: {sigCachePath}");
             }
         }
 
@@ -284,26 +284,26 @@ if (iniPath is not null)
         {
             WriteIni(iniPath, "Settings", "Signature", signature);
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[INI] Signature を書き込みました: {signature}");
+            Console.WriteLine($"[INI] Signature written: {signature}");
             Console.ResetColor();
         }
     }
 }
 
-// ── ゲームデータダウンロード ──────────────────────────────────────────────
+// -- Download game data --
 Console.WriteLine();
-Console.WriteLine("ゲームデータダウンロード中...");
+Console.WriteLine("Downloading game data...");
 int dlCode = PythonRunner.Run(scriptPath,
     ["download", mapCode, "--data-dir", authDir, "--out", dataDir, "--skip-aes-key"],
     exeDir, quietEnv);
 
 if (dlCode != 0)
 {
-    Error($"ダウンロードに失敗しました (終了コード {dlCode})");
+    Error($"Download failed (exit code {dlCode})");
     Pause(); return 1;
 }
 
-// ── plugin.* を paks フォルダへ移動 ──────────────────────────────────────
+// -- Move plugin.* to paks folder --
 var targetFiles = new[] { "plugin.pak", "plugin.ucas", "plugin.utoc", "plugin.sig" };
 int movedCount  = 0;
 
@@ -325,7 +325,7 @@ try
 catch (UnauthorizedAccessException)
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"[ERROR] {paksFolder} への書き込みが拒否されました。");
+    Console.WriteLine($"[ERROR] {paksFolder}: write access denied.");
     Console.WriteLine($"          icacls \"{paksFolder}\" /grant *S-1-5-32-544:(OI)(CI)F /T");
     Console.ResetColor();
     Pause(); return 1;
@@ -333,8 +333,8 @@ catch (UnauthorizedAccessException)
 catch (IOException ex)
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"[ERROR] {paksFolder} への書き込みに失敗しました。Epic Games Launcher と Fortnite を完全に終了してから再実行してください。");
-    Console.WriteLine($"        詳細: {ex.Message}");
+    Console.WriteLine($"[ERROR] Write to {paksFolder} failed. Please fully exit Epic Games Launcher and Fortnite, then try again.");
+    Console.WriteLine($"        Details: {ex.Message}");
     Console.ResetColor();
     Pause(); return 1;
 }
@@ -342,18 +342,18 @@ catch (IOException ex)
 Console.WriteLine();
 if (movedCount == 0)
 {
-    Warn("移動できるファイルがありませんでした。");
-    Warn($"ダウンロードフォルダを確認してください: {mapOutDir}");
+    Warn("No files could be moved.");
+    Warn($"Please check the download folder: {mapOutDir}");
 }
 else
 {
     Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"インストール完了！ {movedCount} ファイルを移動しました。");
-    Console.WriteLine($"インストール先: {paksFolder}");
+    Console.WriteLine($"Installation complete! {movedCount} file(s) moved.");
+    Console.WriteLine($"Installed to: {paksFolder}");
     Console.ResetColor();
 }
 
-// ── GameFeatures プラグインのエクスポート・配置 ───────────────────────────
+// -- Export and place GameFeatures plugin --
 var (gfModuleId, gfAesKeyHex, gfGuid) = GameFeaturePluginExporter.ReadModuleKeyJson(
     Path.Combine(mapOutDir, "module_key_v4.json"));
 
@@ -364,27 +364,27 @@ if (!string.IsNullOrEmpty(gfModuleId) && !string.IsNullOrEmpty(gfAesKeyHex))
         bool gfOk = GameFeaturePluginExporter.ExportPlugin(paksFolder, gfModuleId!, gfAesKeyHex!, gfGuid);
         if (gfOk)
         {
-            // インストールしたフォルダ名を記録 (モード2での削除対象として使用)
+            // Record installed folder name (used as removal target in mode 2)
             var installed = LoadInstalledPlugins(installedPluginsJson);
             if (!installed.Contains(gfModuleId!, StringComparer.OrdinalIgnoreCase))
             {
                 installed.Add(gfModuleId!);
                 SaveInstalledPlugins(installedPluginsJson, installed);
-                Console.WriteLine($"[GF] フォルダ名を記録しました: {gfModuleId}");
+                Console.WriteLine($"[GF] Folder name recorded: {gfModuleId}");
             }
         }
     }
     catch (Exception ex)
     {
-        Warn($"GameFeatures プラグインの配置に失敗しました: {ex.Message}");
+        Warn($"Failed to place GameFeatures plugin: {ex.Message}");
     }
 }
 else
 {
-    Console.WriteLine("[GF] moduleId/aesKeyHex が取得できなかったため GameFeatures プラグインの配置をスキップします。");
+    Console.WriteLine("[GF] Could not obtain moduleId/aesKeyHex; skipping GameFeatures plugin placement.");
 }
 
-// ── EditorPerProjectUserSettings.ini の ContentBrowserDrawer.SelectedPaths を更新 ──
+// -- Update ContentBrowserDrawer.SelectedPaths in EditorPerProjectUserSettings.ini --
 if (!string.IsNullOrEmpty(gfModuleId))
 {
     var editorIniPath = Path.Combine(
@@ -395,37 +395,37 @@ if (!string.IsNullOrEmpty(gfModuleId))
     UpdateContentBrowserSelectedPaths(editorIniPath, gfModuleId!);
 }
 
-// ── ゲーム起動 ────────────────────────────────────────────────────────────
+// -- Launch game --
 Console.WriteLine();
-Console.WriteLine("── ゲーム起動 ──────────────────────────────────────");
+Console.WriteLine("-- Launch game ─────────────────────────────────────");
 
-// amfrt64.dll チェック
+// Check amfrt64.dll
 var amfrtDll  = win64Dir is not null ? Path.Combine(win64Dir, "amfrt64.dll") : null;
 var gameExe   = win64Dir is not null ? Path.Combine(win64Dir, "UnrealEditorFortnite-Win64-Shipping.exe") : null;
 
 if (amfrtDll is null || !File.Exists(amfrtDll))
 {
     Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("[!!] amfrt64.dll が見つかりません。");
-    Console.WriteLine("[!!] AES Loader のセットアップが必要です:");
+    Console.WriteLine("[!!] amfrt64.dll not found.");
+    Console.WriteLine("[!!] AES Loader setup required:");
     Console.WriteLine("[!!]   https://github.com/Aleman-sein-Vater/UEFN-AES-Loader");
     Console.ResetColor();
     Console.WriteLine();
-    Console.Write("ブラウザで上記 URL を開きますか？ [Y/n]: ");
+    Console.Write("Open the above URL in your browser? [Y/n]: ");
     var ans = Console.ReadLine()?.Trim();
     if (!string.Equals(ans, "n", StringComparison.OrdinalIgnoreCase))
     {
         try { Process.Start(new ProcessStartInfo("https://github.com/Aleman-sein-Vater/UEFN-AES-Loader") { UseShellExecute = true }); }
-        catch { Warn("ブラウザを開けませんでした。手動でアクセスしてください。"); }
+        catch { Warn("Could not open browser. Please visit the URL manually."); }
     }
 }
 else if (gameExe is null || !File.Exists(gameExe))
 {
-    Warn($"UnrealEditorFortnite-Win64-Shipping.exe が見つかりません。手動で起動してください。");
+    Warn($"UnrealEditorFortnite-Win64-Shipping.exe not found. Please launch manually.");
 }
 else
 {
-    // -enableplugins= の引数に uplugin と同じ名前 (= gfModuleId) を渡す
+    // Pass the same name as the uplugin (= gfModuleId) to the -enableplugins= argument
     var enablePlugins = !string.IsNullOrEmpty(gfModuleId) ? gfModuleId : "";
 
     var launchArgs =
@@ -443,19 +443,19 @@ else
             WorkingDirectory = win64Dir!,
         });
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("[LAUNCH] 起動しました。");
+        Console.WriteLine("[LAUNCH] Launched.");
         Console.ResetColor();
     }
     catch (Exception ex)
     {
-        Warn($"起動に失敗しました: {ex.Message}");
+        Warn($"Launch failed: {ex.Message}");
     }
 }
 
 Pause();
 return 0;
 
-// ── ヘルパー ──────────────────────────────────────────────────────────────
+// -- Helpers --
 
 static string? TryBuildKeychain(string jsonPath)
 {
@@ -493,13 +493,13 @@ static void WriteIni(string iniPath, string section, string key, string value)
     catch (UnauthorizedAccessException)
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"[ERROR] {iniPath} への書き込みが拒否されました。管理者として実行してください。");
+        Console.WriteLine($"[ERROR] {iniPath}: write access denied. Please run as administrator.");
         Console.ResetColor();
     }
     catch (Exception ex)
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"[ERROR] ini の更新に失敗しました: {ex.Message}");
+        Console.WriteLine($"[ERROR] Failed to update ini: {ex.Message}");
         Console.ResetColor();
     }
 }
@@ -514,7 +514,7 @@ static List<string> LoadInstalledPlugins(string jsonPath)
 static void SaveInstalledPlugins(string jsonPath, List<string> folders)
 {
     try   { File.WriteAllText(jsonPath, JsonSerializer.Serialize(folders, new JsonSerializerOptions { WriteIndented = true })); }
-    catch (Exception ex) { Warn($"installed_plugins.json の保存に失敗しました: {ex.Message}"); }
+    catch (Exception ex) { Warn($"Failed to save installed_plugins.json: {ex.Message}"); }
 }
 
 static void Warn(string msg)
@@ -534,7 +534,7 @@ static void Error(string msg)
 static void Pause()
 {
     Console.WriteLine();
-    Console.WriteLine("Enterキーを押すと終了します...");
+    Console.WriteLine("Press Enter to exit...");
     Console.ReadLine();
 }
 
@@ -575,7 +575,7 @@ static void SaveSignatureCache(string cachePath, SignatureCache cache)
         File.WriteAllText(cachePath, JsonSerializer.Serialize(cache,
             new JsonSerializerOptions { WriteIndented = true }));
     }
-    catch (Exception ex) { Warn($"シグネチャキャッシュの保存に失敗しました: {ex.Message}"); }
+    catch (Exception ex) { Warn($"Failed to save signature cache: {ex.Message}"); }
 }
 
 static bool IsRunningAsAdministrator()
@@ -603,20 +603,20 @@ static bool TryRelaunchAsAdministrator()
 
 /// <summary>
 /// %LocalAppData%\UnrealEditorFortnite\Saved\Config\WindowsEditor\EditorPerProjectUserSettings.ini
-/// の [/Script/ContentBrowser.ContentBrowserSettings] セクション内にある
-/// ContentBrowserDrawer.SelectedPaths= の値を /<moduleId> に書き換えます。
-/// 行が存在しない場合はセクションの末尾に追加します。
-/// ファイル自体が存在しない場合は何もせず警告のみ出します。
+/// inside the [/Script/ContentBrowser.ContentBrowserSettings] section
+/// and sets ContentBrowserDrawer.SelectedPaths= to /<moduleId>.
+/// Appends the key at the end of the section if it does not exist.
+/// Does nothing and only warns if the file itself does not exist.
 /// </summary>
 static void UpdateContentBrowserSelectedPaths(string iniPath, string moduleId)
 {
-    // 書き込む値: /2b3d37a4-4c69-d552-f25d-818ee9d96a77
+    // Value to write: /2b3d37a4-4c69-d552-f25d-818ee9d96a77
     var newValue = $"/{moduleId}";
     const string key = "ContentBrowserDrawer.SelectedPaths";
 
     if (!File.Exists(iniPath))
     {
-        Console.WriteLine($"[CB] EditorPerProjectUserSettings.ini が見つかりません。スキップします: {iniPath}");
+        Console.WriteLine($"[CB] EditorPerProjectUserSettings.ini not found; skipping: {iniPath}");
         return;
     }
 
@@ -627,21 +627,21 @@ static void UpdateContentBrowserSelectedPaths(string iniPath, string moduleId)
 
         for (int i = 0; i < lines.Length; i++)
         {
-            // キーが "ContentBrowserDrawer.SelectedPaths=" で始まる行を探す
-            // (前後の空白を無視、大小文字を区別しない)
+            // Find the line starting with \"ContentBrowserDrawer.SelectedPaths=\"
+            // (ignoring surrounding whitespace, case-insensitive)
             var trimmed = lines[i].TrimStart();
             if (trimmed.StartsWith(key + "=", StringComparison.OrdinalIgnoreCase))
             {
-                var existing = trimmed[(key.Length + 1)..]; // "=" の右側
+                var existing = trimmed[(key.Length + 1)..]; // right side of \"=\"
                 if (string.Equals(existing, newValue, StringComparison.Ordinal))
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"[CB] ContentBrowserDrawer.SelectedPaths は既に正しい値です: {newValue}");
+                    Console.WriteLine($"[CB] ContentBrowserDrawer.SelectedPaths already has the correct value: {newValue}");
                     Console.ResetColor();
                     return;
                 }
 
-                // インデント (行頭スペース等) を保持して値だけ差し替える
+                // Preserve indentation (leading spaces etc.) and replace only the value
                 var indent = lines[i].Length - trimmed.Length;
                 lines[i] = lines[i][..indent] + key + "=" + newValue;
                 updated   = true;
@@ -651,8 +651,8 @@ static void UpdateContentBrowserSelectedPaths(string iniPath, string moduleId)
 
         if (!updated)
         {
-            // キーが存在しなかった場合: [/Script/ContentBrowser.ContentBrowserSettings]
-            // セクションの直後に挿入。見つからなければファイル末尾に追加する。
+            // Key not found: insert after [/Script/ContentBrowser.ContentBrowserSettings]
+            // section header. Append to end of file if section is not found.
             const string targetSection = "[/Script/ContentBrowser.ContentBrowserSettings]";
             var list = lines.ToList();
             int insertAt = -1;
@@ -677,16 +677,16 @@ static void UpdateContentBrowserSelectedPaths(string iniPath, string moduleId)
         File.WriteAllLines(iniPath, lines, new System.Text.UTF8Encoding(false));
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"[CB] ContentBrowserDrawer.SelectedPaths を更新しました: {newValue}");
-        Console.WriteLine($"[CB] ファイル: {iniPath}");
+        Console.WriteLine($"[CB] ContentBrowserDrawer.SelectedPaths updated: {newValue}");
+        Console.WriteLine($"[CB] File: {iniPath}");
         Console.ResetColor();
     }
     catch (UnauthorizedAccessException)
     {
-        Warn($"EditorPerProjectUserSettings.ini への書き込みが拒否されました: {iniPath}");
+        Warn($"Write access denied for EditorPerProjectUserSettings.ini: {iniPath}");
     }
     catch (Exception ex)
     {
-        Warn($"EditorPerProjectUserSettings.ini の更新に失敗しました: {ex.Message}");
+        Warn($"EditorPerProjectUserSettings.Failed to update ini: {ex.Message}");
     }
 }

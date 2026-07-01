@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace UEFNMapInstaller;
 
-/// <summary>Epic API との HTTP 通信を担当するヘルパークラス</summary>
+/// <summary>Helper class that handles HTTP communication with the Epic API</summary>
 internal static class EpicHttp
 {
     private static readonly HttpClient _http = new(new HttpClientHandler
@@ -26,7 +26,7 @@ internal static class EpicHttp
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
-    // ── フォームリクエスト ────────────────────────────────────────────
+    // -- Form requests --
 
     public static async Task<T> FormRequestAsync<T>(
         string url,
@@ -91,7 +91,7 @@ internal static class EpicHttp
                ?? throw new EpicApiException($"Empty response from {url}");
     }
 
-    // ── バイナリダウンロード（進捗表示付き） ──────────────────────────
+    // -- Binary download (with progress display) --
 
     public static async Task DownloadFileAsync(
         string url,

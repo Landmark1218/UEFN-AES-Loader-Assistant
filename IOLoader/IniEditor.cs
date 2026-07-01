@@ -1,15 +1,15 @@
 namespace UEFNMapInstaller;
 
 /// <summary>
-/// 既存の行・コメント・並びを保持したまま、指定セクションのキー値だけを
-/// 差し替える軽量 INI エディタ。該当キーが無ければセクション末尾に追記し、
-/// セクションごと無ければファイル末尾に新規セクションを追加します。
+/// Lightweight INI editor that replaces only the specified key value
+/// while preserving existing lines, comments, and order. Appends to the section if the key is absent,
+/// or adds a new section at the end of the file if the section is missing.
 /// </summary>
 internal static class IniEditor
 {
     /// <summary>
-    /// ファイルを読み込み (無ければ <paramref name="template"/> から作成)、
-    /// 指定の (section, key) を value に設定して保存します。
+    /// Reads the file (or creates it from <paramref name=\"template\"/> if absent),
+    /// sets the specified (section, key) to value, and saves the file.
     /// </summary>
     public static void SetValue(string path, string section, string key, string value, string? template = null)
     {
@@ -52,7 +52,7 @@ internal static class IniEditor
             }
         }
 
-        // セクション内に該当キーなし → 末尾の空行手前へ挿入
+        // Key not found in section -> insert before trailing blank lines
         int insertAt = end;
         while (insertAt - 1 > secIdx && lines[insertAt - 1].Trim().Length == 0)
             insertAt--;

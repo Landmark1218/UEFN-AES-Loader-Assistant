@@ -4,8 +4,8 @@ using System.Security.Cryptography;
 namespace UEFNMapInstaller;
 
 /// <summary>
-/// BPS (BuildPatchServices) マニフェストを解析し、
-/// チャンクをダウンロードしてファイルを再構築します。
+/// Parses a BPS (BuildPatchServices) manifest,
+/// downloads chunks, and reconstructs files.
 /// </summary>
 internal static class BpsDownloader
 {
@@ -52,7 +52,7 @@ internal static class BpsDownloader
                 fs.Close();
                 File.Delete(target);
                 throw new InvalidDataException(
-                    $"SHA1 不一致: {filename} (got={digest}, expected={file.Sha1})");
+                    $"SHA1 mismatch: {filename} (got={digest}, expected={file.Sha1})");
             }
 
             written.Add(target);
@@ -62,7 +62,7 @@ internal static class BpsDownloader
         return written;
     }
 
-    // ── マニフェスト解析 (SpanReader を使わない版) ───────────────────
+    // ── Manifest parsing (without SpanReader) ──────────────────────
 
     private static BpsManifest ParseManifest(byte[] raw)
     {
@@ -70,7 +70,7 @@ internal static class BpsDownloader
 
         uint magic = r.ReadUInt32();
         if (magic != ManifestMagic)
-            throw new InvalidDataException($"BPS マニフェストのマジックが不正: 0x{magic:X8}");
+            throw new InvalidDataException($"Invalid BPS manifest magic: 0x{magic:X8}");
 
         int  headerSize       = r.ReadInt32();
         int  uncompressedSize = r.ReadInt32();
@@ -97,16 +97,16 @@ internal static class BpsDownloader
         }
 
         if (body.Length != uncompressedSize)
-            throw new InvalidDataException("BPS マニフェストの展開サイズ不一致");
+            throw new InvalidDataException("BPS manifest decompressed size mismatch");
 
         var br = new ByteReader(body);
 
-        // メタセクション スキップ
+        // Skip meta section
         int metaStart = br.Position;
         int metaSize  = br.ReadInt32();
         br.Seek(metaStart + metaSize);
 
-        // チャンクセクション
+        // Chunk section
         int chunkStart    = br.Position;
         int chunkDataSize = br.ReadInt32();
         br.ReadByte(); // version
@@ -123,7 +123,7 @@ internal static class BpsDownloader
 
         var chunkLookup = chunks.ToDictionary(c => c.Guid);
 
-        // ファイルセクション
+        // File section
         int filesStart    = br.Position;
         int filesDataSize = br.ReadInt32();
         br.ReadByte(); // filesVersion
@@ -150,7 +150,7 @@ internal static class BpsDownloader
                 var offset = br.ReadUInt32();
                 var size   = br.ReadUInt32();
                 if (!chunkLookup.TryGetValue(guid, out var chunk))
-                    throw new InvalidDataException($"チャンク GUID が見つかりません: {guid}");
+                    throw new InvalidDataException($"Chunk GUID not found: {guid}");
                 files[i].ChunkParts.Add(new BpsChunkPart { Chunk = chunk, Offset = offset, Size = size });
                 fileSize += size;
             }
@@ -160,7 +160,7 @@ internal static class BpsDownloader
         return new BpsManifest { Files = files };
     }
 
-    // ── チャンク取得 ────────────────────────────────────────────────
+    // ── Chunk download ─────────────────────────────────────────────
 
     private static async Task<byte[]> FetchChunkAsync(
         string baseUrl, BpsChunk chunk, string cacheDir, string channel, CancellationToken ct)
@@ -183,7 +183,7 @@ internal static class BpsDownloader
         var r     = new ByteReader(raw);
         uint magic = r.ReadUInt32();
         if (magic != ChunkMagic)
-            throw new InvalidDataException($"BPS チャンクのマジックが不正: 0x{magic:X8}");
+            throw new InvalidDataException($"Invalid BPS chunk magic: 0x{magic:X8}");
 
         r.ReadUInt32();                          // version
         int headerSize      = r.ReadInt32();
@@ -191,7 +191,7 @@ internal static class BpsDownloader
         r.Skip(16);                              // guid
         r.Skip(8);                               // hash
         byte storedAs = r.ReadByte();
-        r.Seek(headerSize);                      // ヘッダー末尾へ
+        r.Seek(headerSize);                      // Seek to end of header
 
         byte[] payload = r.ReadBytes(compressedSize);
 
@@ -207,7 +207,7 @@ internal static class BpsDownloader
         return payload;
     }
 
-    // ── データモデル ────────────────────────────────────────────────
+    // ── Data models ────────────────────────────────────────────────
 
     private sealed class BpsManifest  { public BpsFileRecord[] Files { get; set; } = []; }
 
@@ -239,7 +239,7 @@ internal static class BpsDownloader
         public uint     Size   { get; set; }
     }
 
-    // ── ByteReader (非 ref struct, async で使用可) ──────────────────
+    // ── ByteReader (non-ref struct, usable in async) ──────────────────
 
     private sealed class ByteReader
     {

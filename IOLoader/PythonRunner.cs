@@ -3,29 +3,29 @@ using System.Diagnostics;
 namespace UEFNMapInstaller;
 
 /// <summary>
-/// uefn_downloader.py をサブプロセスとして起動するヘルパー。
-/// stdout をリアルタイムにコンソールへ転送し、終了コードを返します。
+/// Helper that launches uefn_downloader.py as a subprocess.
+/// Streams stdout to the console in real time and returns the exit code.
 /// </summary>
 internal static class PythonRunner
 {
     /// <summary>
-    /// Python スクリプトを引数付きで実行します。
-    /// stdout / stderr はリアルタイムで親プロセスのコンソールに流れます。
+    /// Runs a Python script with the given arguments.
+    /// stdout / stderr are streamed to the parent process console in real time.
     /// </summary>
-    /// <returns>プロセスの終了コード</returns>
+    /// <returns>Process exit code</returns>
     public static int Run(string scriptPath, string[] args, string workingDir, IDictionary<string, string>? env = null)
     {
         var pythonExe = FindPython();
         if (pythonExe is null)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("[ERROR] Python が見つかりません。");
-            Console.WriteLine("  python.exe または python3.exe にパスが通っているか確認してください。");
+            Console.WriteLine("[ERROR] Python not found.");
+            Console.WriteLine("  Make sure python.exe or python3.exe is on your PATH.");
             Console.ResetColor();
             return -1;
         }
 
-        // コマンドライン文字列を組み立て
+        // Build command-line string
         var argList = new List<string> { $"\"{scriptPath}\"" };
         argList.AddRange(args.Select(QuoteArg));
         var argStr = string.Join(" ", argList);
@@ -36,7 +36,7 @@ internal static class PythonRunner
             Arguments              = argStr,
             WorkingDirectory       = workingDir,
             UseShellExecute        = false,
-            RedirectStandardOutput = false,  // コンソールに直接出力させる
+            RedirectStandardOutput = false,  // let output go directly to console
             RedirectStandardError  = false,
             CreateNoWindow         = false,
         };
@@ -52,14 +52,14 @@ internal static class PythonRunner
     }
 
     /// <summary>
-    /// Python スクリプトを実行し、stdout を文字列として返します（解析用）。
-    /// stderr はバッファして返します。
+    /// Runs a Python script and returns stdout as a string (for parsing).
+    /// stderr is buffered and returned.
     /// </summary>
     public static (int exitCode, string stdout, string stderr) RunCapture(
         string scriptPath, string[] args, string workingDir)
     {
         var pythonExe = FindPython()
-            ?? throw new FileNotFoundException("Python が見つかりません");
+            ?? throw new FileNotFoundException("Python not found");
 
         var argList = new List<string> { $"\"{scriptPath}\"" };
         argList.AddRange(args.Select(QuoteArg));
@@ -84,15 +84,15 @@ internal static class PythonRunner
     }
 
     /// <summary>
-    /// Python スクリプトを実行し、stdout を文字列として返します（解析用）。
-    /// stderr はリアルタイムでコンソールに流します（進捗ログ用）。
+    /// Runs a Python script and returns stdout as a string (for parsing).
+    /// stderr is streamed to the console in real time (for progress logging).
     /// </summary>
     public static (int exitCode, string stdout) RunCaptureWithLiveStderr(
         string scriptPath, string[] args, string workingDir,
         ConsoleColor stderrColor = ConsoleColor.Cyan)
     {
         var pythonExe = FindPython()
-            ?? throw new FileNotFoundException("Python が見つかりません");
+            ?? throw new FileNotFoundException("Python not found");
 
         var argList = new List<string> { $"\"{scriptPath}\"" };
         argList.AddRange(args.Select(QuoteArg));
@@ -112,7 +112,7 @@ internal static class PythonRunner
 
         using var proc = new Process { StartInfo = psi };
 
-        // stderr はイベントでリアルタイム表示
+        // Display stderr in real time via events
         proc.EnableRaisingEvents = true;
         proc.ErrorDataReceived += (_, e) =>
         {
@@ -125,7 +125,7 @@ internal static class PythonRunner
         proc.Start();
         proc.BeginErrorReadLine();
 
-        // stdout は非同期で読みながら最後にまとめて返す
+        // Read stdout asynchronously and return it all at the end
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
         proc.WaitForExit();
         var stdout = stdoutTask.GetAwaiter().GetResult();
@@ -133,14 +133,14 @@ internal static class PythonRunner
         return (proc.ExitCode, stdout);
     }
 
-    // ── Python 実行ファイルを探す ──────────────────────────────────
+    // -- Locate Python executable --
 
     private static string? FindPython()
     {
         foreach (var name in new[] { "python", "python3", "py" })
         {
             var path = FindInPath(name + ".exe")
-                    ?? FindInPath(name);      // Linux/Mac 互換
+                    ?? FindInPath(name);      // Linux/Mac fallback
             if (path is not null) return path;
         }
         return null;

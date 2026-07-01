@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace UEFNMapInstaller;
 
-// ── Epic API エンドポイント定数 ──────────────────────────────────────
+// -- Epic API endpoint constants --
 internal static class EpicEndpoints
 {
     public const string AccountBase = "https://account-public-service-prod.ol.epicgames.com";
@@ -11,11 +11,11 @@ internal static class EpicEndpoints
     public const string ModuleKeyBatchUrl = $"{ContentServiceBase}/api/content/v4/module/key/batch";
     public const string DillyMappingsUrl = "https://export-service-new.dillyapis.com/v1/mappings";
 
-    // device-auth フロー用 Basic 認証値 (Python版と同一)
+    // Basic auth value for device-auth flow (same as Python version)
     public const string JsDeviceAuthBasic = "NzlhOTMxYjM3NTMzNDU3MGFjMzY5MjM0ZjVkYTA1ZWM6ZWU3MzM1ZGYzYzRhNDEyY2I1NzA1NWFiN2FkZTY5M2U=";
     public const string JsContentExchangeBasic = "M2UxM2M1YzU3ZjU5NGE1NzhhYmU1MTZlZWNiNjczZmU6NTMwZTMxNmMzMzdlNDA5ODkzYzU1ZWM0NGYyMmNkNjI=";
 
-    // Android クライアント (device_auth / exchange に使用)
+    // Android client (used for device_auth / exchange)
     public const string AndroidClientId = "3f69e56c7649492c8cc29f1af08a8a12";
     public const string AndroidClientSecret = "b51ee9cb12234f50a69efa67ef53812e";
 
@@ -24,7 +24,7 @@ internal static class EpicEndpoints
             System.Text.Encoding.UTF8.GetBytes($"{AndroidClientId}:{AndroidClientSecret}"));
 }
 
-// ── JSON モデル ────────────────────────────────────────────────────────
+// -- JSON models --
 
 internal sealed class DeviceAuthRecord
 {
@@ -128,10 +128,10 @@ internal sealed class ModuleKeyData
     [JsonPropertyName("Guid")] public string? Guid { get; set; }
 }
 
-// ── シグネチャキャッシュ ──────────────────────────────────────────────
-// find-signature の結果をゲームバージョン (major.minor, 例: "41.10") と
-// 紐付けて保存しておき、次回起動時に同じバージョンならDLLの再スキャンを
-// スキップするためのキャッシュファイル。
+// -- Signature cache --
+// Caches the find-signature result together with the game version (major.minor, e.g. \"41.10\")
+// so that on next launch, if the version is unchanged, the DLL re-scan
+// can be skipped.
 internal sealed class SignatureCache
 {
     [JsonPropertyName("gameVersion")] public string? GameVersion { get; set; }

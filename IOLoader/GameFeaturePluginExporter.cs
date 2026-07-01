@@ -9,45 +9,45 @@ using CUE4Parse.UE4.Versions;
 namespace UEFNMapInstaller;
 
 /// <summary>
-/// 取得したゲームディレクトリの Plugins/GameFeatures フォルダ内に、
-/// module_key_v4.json の "moduleId" と同名のフォルダを作成し、
-/// CUE4Parse で moduleId + ".uplugin" を検索・エクスポートして配置、
-/// "EnabledByDefault" を true にして保存します。
+/// Creates a folder named after moduleId inside the game directory's Plugins/GameFeatures,
+/// as specified in module_key_v4.json,
+/// then searches for and exports moduleId + ".uplugin" using CUE4Parse,
+/// sets \"EnabledByDefault\" to true, and saves the file.
 /// </summary>
 internal static class GameFeaturePluginExporter
 {
-    /// <param name="paksFolder">FortniteGame\Content\Paks フォルダ (FortnitePathLocator が返すパス)</param>
-    /// <param name="moduleId">module_key_v4.json の moduleId</param>
-    /// <param name="aesKeyHex">module_key_v4.json の aesKeyHex ("0x" 有無どちらでも可)</param>
+    /// <param name="paksFolder">FortniteGame\\Content\\Paks folder (path returned by FortnitePathLocator)</param>
+    /// <param name="moduleId">moduleId from module_key_v4.json</param>
+    /// <param name="aesKeyHex">aesKeyHex from module_key_v4.json (with or without \"0x\" prefix)</param>
     /// <param name="pakGuid">
-    /// module_key_v4.json の guid (ハイフン有無どちらでも可)。
-    /// plugin.pak はメインの静的キー (GUID=0) ではなく、この pak 専用の GUID で
-    /// 暗号化されているため、これを渡さないとインデックスが復号できず
-    /// 中身のファイル (uplugin 含む) が一切見えなくなる。
+    /// guid from module_key_v4.json (with or without hyphens).
+    /// plugin.pak is encrypted with this pak-specific GUID, not the main static key (GUID=0),
+    /// so without this the pak index cannot be decrypted
+    /// and no files (including the uplugin) will be visible.
     /// </param>
     public static bool ExportPlugin(string paksFolder, string moduleId, string aesKeyHex, string? pakGuid = null)
     {
         if (string.IsNullOrWhiteSpace(moduleId))
         {
-            Console.WriteLine("[GF] moduleId が空のためスキップします。");
+            Console.WriteLine("[GF] moduleId is empty; skipping.");
             return false;
         }
 
         // paksFolder = <Install>\FortniteGame\Content\Paks
-        //   → 1つ上がる: Content
-        //   → 2つ上がる: FortniteGame  (= "取得したゲームのディレクトリ")
+        //   -> one level up: Content
+        //   -> two levels up: FortniteGame (= the game directory)
         var contentDir     = Directory.GetParent(paksFolder)?.FullName;
         var gameDir        = contentDir is not null ? Directory.GetParent(contentDir)?.FullName : null;
         if (gameDir is null)
         {
-            Console.WriteLine($"[GF] ゲームディレクトリの特定に失敗しました: {paksFolder}");
+            Console.WriteLine($"[GF] Failed to determine game directory: {paksFolder}");
             return false;
         }
 
         var gameFeaturesDir = Path.Combine(gameDir, "Plugins", "GameFeatures");
         if (!Directory.Exists(gameFeaturesDir))
         {
-            Console.WriteLine($"[GF] Plugins/GameFeatures フォルダが見つかりません: {gameFeaturesDir}");
+            Console.WriteLine($"[GF] Plugins/GameFeatures folder not found: {gameFeaturesDir}");
             return false;
         }
 
@@ -55,7 +55,7 @@ internal static class GameFeaturePluginExporter
         Directory.CreateDirectory(targetDir);
 
         Console.WriteLine();
-        Console.WriteLine("[GF] upluginを抽出中...");
+        Console.WriteLine("[GF] Extracting uplugin...");
 
         FAesKey aesKey;
         try
@@ -67,7 +67,7 @@ internal static class GameFeaturePluginExporter
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GF] AES キーの形式が不正です: {ex.Message}");
+            Console.WriteLine($"[GF] Invalid AES key format: {ex.Message}");
             return false;
         }
 
@@ -81,11 +81,11 @@ internal static class GameFeaturePluginExporter
             provider.Initialize();
             provider.Mount();
 
-            // メインの静的キー (GUID=0)。非暗号化/共通の pak 向け
+            // Main static key (GUID=0) for unencrypted/shared paks
             provider.SubmitKey(new FGuid(), aesKey);
 
-            // この plugin.pak 専用の暗号化キー。これが無いと当該 pak のインデックスが
-            // 復号できず、中の uplugin が見つからない。
+            // Pak-specific encryption key. Without it the pak index
+            // cannot be decrypted and the uplugin will not be found.
             if (!string.IsNullOrWhiteSpace(pakGuid))
             {
                 var normalizedGuid = pakGuid.Replace("-", "").Replace("{", "").Replace("}", "");
@@ -96,22 +96,22 @@ internal static class GameFeaturePluginExporter
                 }
                 else
                 {
-                    Console.WriteLine($"[GF] guid の形式が不正なためスキップしました: {pakGuid}");
+                    Console.WriteLine($"[GF] Invalid guid format; skipped: {pakGuid}");
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GF] ゲームファイルの読み込みに失敗しました: {ex.Message}");
+            Console.WriteLine($"[GF] Failed to load game files: {ex.Message}");
             return false;
         }
 
-        // moduleId + ".uplugin" を検索
+        // Search for moduleId + ".uplugin"
         var pluginFile = provider.Files.Values.FirstOrDefault(f =>
             string.Equals(f.Extension, "uplugin", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(f.NameWithoutExtension, moduleId, StringComparison.OrdinalIgnoreCase));
 
-        // 完全一致が無ければパスに moduleId を含むものへフォールバック
+        // Fall back to any path containing moduleId if no exact match
         pluginFile ??= provider.Files.Values.FirstOrDefault(f =>
             string.Equals(f.Extension, "uplugin", StringComparison.OrdinalIgnoreCase) &&
             f.Path.Contains(moduleId, StringComparison.OrdinalIgnoreCase));
@@ -120,18 +120,18 @@ internal static class GameFeaturePluginExporter
         {
             var upluginCount = provider.Files.Values.Count(f =>
                 string.Equals(f.Extension, "uplugin", StringComparison.OrdinalIgnoreCase));
-            Console.WriteLine($"[GF] {moduleId}.uplugin が見つかりませんでした。" +
-                               $"(マウント後に確認できた .uplugin 総数: {upluginCount})");
+            Console.WriteLine($"[GF] {moduleId}.uplugin was not found." +
+                               $"(total .uplugin files visible after mount: {upluginCount})");
             if (upluginCount == 0)
-                Console.WriteLine("[GF] .uplugin が1件も見えていません。AES キー/GUID が誤っているか、pak の復号に失敗している可能性があります。");
+                Console.WriteLine("[GF] No .uplugin files visible at all. The AES key/GUID may be wrong or pak decryption failed.");
             return false;
         }
 
-        Console.WriteLine($"[GF] 発見: {pluginFile.Path}");
+        Console.WriteLine($"[GF] Found: {pluginFile.Path}");
 
         if (!provider.TrySaveAsset(pluginFile, out var data))
         {
-            Console.WriteLine($"[GF] {pluginFile.Path} のエクスポートに失敗しました。");
+            Console.WriteLine($"[GF] {pluginFile.Path} export failed.");
             return false;
         }
 
@@ -140,7 +140,7 @@ internal static class GameFeaturePluginExporter
         {
             var text = Encoding.UTF8.GetString(data).TrimStart('\uFEFF');
             var node = JsonNode.Parse(text)?.AsObject()
-                       ?? throw new InvalidOperationException("uplugin の JSON 解析に失敗しました。");
+                       ?? throw new InvalidOperationException("Failed to parse uplugin JSON.");
 
             node["EnabledByDefault"] = true;
 
@@ -148,7 +148,7 @@ internal static class GameFeaturePluginExporter
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GF] uplugin の編集に失敗しました: {ex.Message}");
+            Console.WriteLine($"[GF] Failed to edit uplugin: {ex.Message}");
             return false;
         }
 
@@ -156,12 +156,12 @@ internal static class GameFeaturePluginExporter
         File.WriteAllText(outPath, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"[GF] 配置完了 (EnabledByDefault=true): {outPath}");
+        Console.WriteLine($"[GF] Placed (EnabledByDefault=true): {outPath}");
         Console.ResetColor();
         return true;
     }
 
-    /// <summary>module_key_v4.json から moduleId / aesKeyHex / guid (pak 固有の暗号化GUID) を取り出します。</summary>
+    /// <summary>Reads moduleId, aesKeyHex, and guid (pak-specific encryption GUID) from module_key_v4.json.</summary>
     public static (string? ModuleId, string? AesKeyHex, string? Guid) ReadModuleKeyJson(string jsonPath)
     {
         if (!File.Exists(jsonPath)) return (null, null, null);

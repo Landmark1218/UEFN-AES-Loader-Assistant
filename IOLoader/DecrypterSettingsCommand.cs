@@ -4,17 +4,17 @@ using System.Text.RegularExpressions;
 namespace UEFNMapInstaller;
 
 /// <summary>
-/// DecrypterSettings.ini (Binaries\Win64) を生成・更新する独立コマンド。
-/// 触るのは [Settings] Signature と [ContentKeys] Key0 の2か所のみで、
-/// それ以外の既存キー・コメントはそのまま保持します。
-///   - Key0      : 取得したキーチェーン (GUID(ダッシュ無し大文字):base64)
-///   - Signature : uefn_downloader.py find-signature で抽出したバイトパターン
+/// Standalone command to generate/update DecrypterSettings.ini (Binaries\\Win64).
+/// Only [Settings] Signature and [ContentKeys] Key0 are modified;
+/// all other existing keys and comments are preserved.
+///   - Key0      : Fetched key chain (GUID(no-dash, uppercase):base64)
+///   - Signature : Byte pattern extracted by uefn_downloader.py find-signature
 /// </summary>
 internal static class DecrypterSettingsCommand
 {
     private const string IniFileName = "DecrypterSettings.ini";
 
-    // 例の ini に合わせた初期テンプレート (新規作成時のみ使用)
+    // Initial template matching the example ini (used only when creating a new file)
     private const string IniTemplate =
         "[Settings]\r\n" +
         "ModuleName=unrealeditorfortnite-engine-win64-shipping.dll\r\n" +
@@ -24,30 +24,30 @@ internal static class DecrypterSettingsCommand
         "[ContentKeys]\r\n" +
         "Key0=\r\n";
 
-    // GUID(32桁hex,ダッシュ無し) : base64
+    // GUID(32-char hex, no dashes) : base64
     private static readonly Regex KeychainPattern =
         new(@"^[0-9A-Fa-f]{32}:[A-Za-z0-9+/]+={0,2}$", RegexOptions.Compiled);
 
     public static int Run(string exeDir)
     {
         Console.WriteLine();
-        Console.WriteLine("== DecrypterSettings.ini 更新 ==");
+        Console.WriteLine("== Updating DecrypterSettings.ini ==");
 
-        // ── 1. 対象 exe / Binaries\Win64 / ini パスを特定 ────────────────
+        // -- 1. Locate target exe / Binaries\\Win64 / ini path --
         var targetExe = FortnitePathLocator.FindUnrealEditorExe();
         if (targetExe is null)
         {
-            Error($"{FortnitePathLocator.UnrealEditorExeName} が見つかりませんでした。");
-            Error("UEFN (Fortnite) がインストールされているか確認してください。");
+            Error($"{FortnitePathLocator.UnrealEditorExeName} was not found.");
+            Error("Please verify that UEFN (Fortnite) is installed.");
             Pause();
             return 1;
         }
 
         var win64Dir = Path.GetDirectoryName(targetExe)!;
         var iniPath = Path.Combine(win64Dir, IniFileName);
-        Console.WriteLine($"[INI] 出力先 : {iniPath}");
+        Console.WriteLine($"[INI] Output: {iniPath}");
 
-        // ── 2. キーチェーン (Key0) ───────────────────────────────────────
+        // -- 2. Key chain (Key0) --
         string? keychain = ResolveKeychain(exeDir);
 
         // ── 3. Signature ─────────────────────────────────────────────────
@@ -55,12 +55,12 @@ internal static class DecrypterSettingsCommand
 
         if (keychain is null && signature is null)
         {
-            Warn("Key0 / Signature いずれも更新対象がありません。処理を終了します。");
+            Warn("Neither Key0 nor Signature has an update target. Exiting.");
             Pause();
             return 1;
         }
 
-        // ── 4. ini を更新 (該当キーのみ) ────────────────────────────────
+        // -- 4. Update ini (matching keys only) --
         try
         {
             if (keychain is not null)
@@ -76,44 +76,44 @@ internal static class DecrypterSettingsCommand
         }
         catch (UnauthorizedAccessException)
         {
-            Error($"{iniPath} への書き込みが拒否されました。");
-            Error("管理者として実行するか、書き込み権限を確認してください。");
+            Error($"{iniPath}: write access denied.");
+            Error("Please run as administrator or check write permissions.");
             Pause();
             return 1;
         }
         catch (Exception ex)
         {
-            Error($"ini の更新に失敗しました: {ex.Message}");
+            Error($"Failed to update ini: {ex.Message}");
             Pause();
             return 1;
         }
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"DecrypterSettings.ini を更新しました: {iniPath}");
+        Console.WriteLine($"DecrypterSettings.ini updated: {iniPath}");
         Console.ResetColor();
         Pause();
         return 0;
     }
 
-    // ── キーチェーン取得 ────────────────────────────────────────────────
+    // -- Fetch key chain --
 
     private static string? ResolveKeychain(string exeDir)
     {
         Console.WriteLine();
-        Console.Write("Key0 用のマップコード または キーチェーン(GUID:base64) を入力\n  (Key0 を更新しない場合は空 Enter): ");
+        Console.Write("Enter map code or key chain (GUID:base64) for Key0\n  (press Enter to skip Key0): ");
         var input = Console.ReadLine()?.Trim() ?? "";
         if (input.Length == 0)
             return null;
 
-        // "KeyChain: ..." 形式の貼り付けに対応
+        // Support pasting in \"KeyChain: ...\" format
         if (input.StartsWith("KeyChain:", StringComparison.OrdinalIgnoreCase))
             input = input["KeyChain:".Length..].Trim();
 
-        // 直接キーチェーンが貼られた場合
+        // If a raw key chain was pasted
         if (KeychainPattern.IsMatch(input))
             return input;
 
-        // それ以外はマップコードとして resolve-v2 を実行して取得
+        // Otherwise treat as a map code and run resolve-v2 to fetch
         string mapCode;
         try
         {
@@ -121,7 +121,7 @@ internal static class DecrypterSettingsCommand
         }
         catch
         {
-            Warn("入力がマップコード(12桁)でもキーチェーン(GUID:base64)でもありません。Key0 はスキップします。");
+            Warn("Input is neither a map code (12 digits) nor a key chain (GUID:base64). Skipping Key0.");
             return null;
         }
 
@@ -133,7 +133,7 @@ internal static class DecrypterSettingsCommand
         var scriptPath = Path.Combine(exeDir, "uefn_downloader.py");
         if (!File.Exists(scriptPath))
         {
-            Warn($"uefn_downloader.py が見つからないためキーチェーン取得をスキップします: {scriptPath}");
+            Warn($"uefn_downloader.py not found; skipping key chain fetch: {scriptPath}");
             return null;
         }
 
@@ -142,7 +142,7 @@ internal static class DecrypterSettingsCommand
         var authDir = Path.Combine(dataDir, "auth");
         Directory.CreateDirectory(authDir);
 
-        // 初回のみデバイスログイン
+        // Device login on first run only
         var deviceAuthPath = Path.Combine(authDir, "device_auth.json");
         if (!File.Exists(deviceAuthPath))
         {
@@ -150,25 +150,25 @@ internal static class DecrypterSettingsCommand
                 ["device-login", "--data-dir", authDir], exeDir, quietEnv);
             if (loginCode != 0)
             {
-                Warn($"ログインに失敗しました (終了コード {loginCode})。Key0 はスキップします。");
+                Warn($"Login failed (exit code {loginCode}). Skipping Key0.");
                 return null;
             }
         }
 
-        // AES キー (module_key_v4.json) を取得
+        // Fetch AES key (module_key_v4.json)
         int aesCode = PythonRunner.Run(scriptPath,
             ["resolve-v2", mapCode, "--data-dir", authDir, "--out", dataDir],
             exeDir, quietEnv);
         if (aesCode != 0)
         {
-            Warn("AES キーの取得に失敗しました (非暗号化マップ等)。Key0 はスキップします。");
+            Warn("Failed to fetch AES key (unencrypted map etc.). Skipping Key0.");
             return null;
         }
 
         var keyJson = Path.Combine(dataDir, mapCode, "module_key_v4.json");
         if (!File.Exists(keyJson))
         {
-            Warn($"module_key_v4.json が見つかりません: {keyJson}。Key0 はスキップします。");
+            Warn($"module_key_v4.json not found: {keyJson}. Skipping Key0.");
             return null;
         }
 
@@ -178,13 +178,13 @@ internal static class DecrypterSettingsCommand
         }
         catch (Exception ex)
         {
-            Warn($"キーチェーンの組み立てに失敗しました: {ex.Message}。Key0 はスキップします。");
+            Warn($"Failed to build key chain: {ex.Message}. Skipping Key0.");
             return null;
         }
     }
 
     /// <summary>
-    /// module_key_v4.json から Key0 形式 ("GUID(ダッシュ無し大文字):base64") を組み立てます。
+    /// Builds Key0 format (\"GUID(no-dash, uppercase):base64\") from module_key_v4.json.
     /// </summary>
     private static string BuildKeychainFromModuleKeyJson(string jsonPath)
     {
@@ -193,9 +193,9 @@ internal static class DecrypterSettingsCommand
 
         var guid = root.TryGetProperty("guid", out var g) ? g.GetString() : null;
         if (string.IsNullOrEmpty(guid))
-            throw new InvalidDataException("guid フィールドがありません");
+            throw new InvalidDataException("Missing guid field");
 
-        // base64 鍵: raw.key.Key を優先、無ければ aesKeyHex から再計算
+        // base64 key: prefer raw.key.Key, otherwise derive from aesKeyHex
         string? base64 = null;
         if (root.TryGetProperty("raw", out var raw)
             && raw.TryGetProperty("key", out var keyObj)
@@ -207,7 +207,7 @@ internal static class DecrypterSettingsCommand
         {
             var hex = root.TryGetProperty("aesKeyHex", out var h) ? h.GetString() : null;
             if (string.IsNullOrEmpty(hex))
-                throw new InvalidDataException("aesKeyHex / raw.key.Key のいずれもありません");
+                throw new InvalidDataException("Neither aesKeyHex nor raw.key.Key is present");
             base64 = Convert.ToBase64String(HexToBytes(hex!));
         }
 
@@ -218,21 +218,21 @@ internal static class DecrypterSettingsCommand
     private static byte[] HexToBytes(string hex)
     {
         if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) hex = hex[2..];
-        if (hex.Length % 2 != 0) throw new FormatException("16進文字列の長さが不正です");
+        if (hex.Length % 2 != 0) throw new FormatException("Hex string has invalid length");
         var bytes = new byte[hex.Length / 2];
         for (int i = 0; i < bytes.Length; i++)
             bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
         return bytes;
     }
 
-    // ── Signature 取得 ──────────────────────────────────────────────────
+    // -- Fetch Signature --
 
     private const string SignatureCacheFileName = "signature_cache.json";
 
     private static (string? Signature, string? FunctionRva) ResolveSignature(string exeDir, string win64Dir)
     {
         Console.WriteLine();
-        Console.Write("Signature を自動取得しますか? [Y/n]: ");
+        Console.Write("Auto-fetch Signature? [Y/n]: ");
         var ans = Console.ReadLine()?.Trim();
         if (string.Equals(ans, "n", StringComparison.OrdinalIgnoreCase))
             return (null, null);
@@ -240,15 +240,15 @@ internal static class DecrypterSettingsCommand
         var scriptPath = Path.Combine(exeDir, "uefn_downloader.py");
         if (!File.Exists(scriptPath))
         {
-            Warn($"uefn_downloader.py が見つかりません: {scriptPath}。Signature はスキップします。");
+            Warn($"uefn_downloader.py not found: {scriptPath}. Skipping Signature.");
             return (null, null);
         }
 
-        // DLL を Win64 フォルダから探す
+        // Look for DLL in Win64 folder
         var engineDll = Path.Combine(win64Dir, "UnrealEditorFortnite-Engine-Win64-Shipping.dll");
         if (!File.Exists(engineDll))
         {
-            Warn($"DLL が見つかりません: {engineDll}。Signature はスキップします。");
+            Warn($"DLL not found: {engineDll}. Skipping Signature.");
             return (null, null);
         }
 
@@ -257,29 +257,29 @@ internal static class DecrypterSettingsCommand
         var cachePath = Path.Combine(dataDir, SignatureCacheFileName);
         var cache = LoadSignatureCache(cachePath);
 
-        // 現在のゲームバージョン (例: "41.10") を取得。失敗してもスキャン自体は続行する
-        // (バージョン比較ができないだけで、致命的なエラーにはしない)。
+        // Fetch current game version (e.g. \"41.10\"). Scan continues even on failure
+        // (only version comparison is skipped; not a fatal error).
         string? currentVersion = FetchGameVersion(scriptPath, exeDir);
         if (currentVersion is not null)
-            Console.WriteLine($"[SIG] 現在のゲームバージョン: {currentVersion}");
+            Console.WriteLine($"[SIG] Current game version: {currentVersion}");
         else
-            Warn("ゲームバージョンの取得に失敗しました。バージョン比較をスキップしてDLLを再スキャンします。");
+            Warn("Failed to get game version. Skipping version comparison and re-scanning DLL.");
 
-        // キャッシュのバージョンと一致していれば DLL の再スキャンを省略し、
-        // 保存済みの Signature / FunctionRVA をそのまま再利用する。
+        // If cache version matches, skip DLL re-scan and
+        // reuse the saved Signature / FunctionRVA.
         if (currentVersion is not null
             && cache is not null
             && string.Equals(cache.GameVersion, currentVersion, StringComparison.Ordinal)
             && !string.IsNullOrEmpty(cache.Signature))
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[SIG] ゲームバージョンに変更なし ({currentVersion}) → キャッシュ済み Signature を再利用します");
+            Console.WriteLine($"[SIG] Game version unchanged ({currentVersion}) -> Reusing cached Signature");
             Console.WriteLine($"[SIG] Signature (cache): {cache.Signature}");
             Console.ResetColor();
             return (cache.Signature, cache.FunctionRva);
         }
 
-        // stderr をリアルタイムでコンソールに流しながら stdout をキャプチャ
+        // Stream stderr to console in real time while capturing stdout
         var (code, stdout) = PythonRunner.RunCaptureWithLiveStderr(
             scriptPath, ["find-signature", engineDll], exeDir,
             stderrColor: ConsoleColor.Cyan);
@@ -298,12 +298,12 @@ internal static class DecrypterSettingsCommand
         if (code == 0 && !string.IsNullOrEmpty(sig))
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[SIG] Signature 取得成功: {sig}");
+            Console.WriteLine($"[SIG] Signature retrieved: {sig}");
             Console.ResetColor();
 
-            // 次回以降のスキップ判定用にバージョンと一緒にキャッシュへ保存。
-            // バージョン取得に失敗していた場合はキャッシュを書かない
-            // (次回必ず再スキャンさせて安全側に倒す)。
+            // Save to cache with version for skip decision on next run.
+            // Do not write cache if version fetch failed
+            // (force re-scan next time to stay safe).
             if (currentVersion is not null)
             {
                 SaveSignatureCache(cachePath, new SignatureCache
@@ -313,19 +313,19 @@ internal static class DecrypterSettingsCommand
                     FunctionRva  = functionRva,
                     UpdatedAtUtc = DateTime.UtcNow.ToString("O"),
                 });
-                Console.WriteLine($"[SIG] キャッシュを更新しました: {cachePath}");
+                Console.WriteLine($"[SIG] Cache updated: {cachePath}");
             }
 
             return (sig, functionRva);
         }
 
-        Warn("Signature の取得に失敗しました。手動で DecrypterSettings.ini の Signature を設定してください。");
+        Warn("Failed to retrieve Signature. Please set Signature in DecrypterSettings.ini manually.");
         return (null, null);
     }
 
     /// <summary>
-    /// uefn_downloader.py game-version を実行し、"41.10" のような
-    /// major.minor 文字列を取得します。失敗時は null を返します。
+    /// Runs uefn_downloader.py game-version and returns a
+    /// major.minor string such as \"41.10\". Returns null on failure.
     /// </summary>
     private static string? FetchGameVersion(string scriptPath, string exeDir)
     {
@@ -354,7 +354,7 @@ internal static class DecrypterSettingsCommand
         }
         catch
         {
-            // 壊れたキャッシュは無視して再スキャンさせる
+            // Ignore corrupted cache and force re-scan
             return null;
         }
     }
@@ -368,11 +368,11 @@ internal static class DecrypterSettingsCommand
         }
         catch (Exception ex)
         {
-            Warn($"シグネチャキャッシュの保存に失敗しました: {ex.Message}");
+            Warn($"Failed to save signature cache: {ex.Message}");
         }
     }
 
-    // ── UI ヘルパー ──────────────────────────────────────────────────────
+    // -- UI helpers --
 
     private static void Warn(string msg)
     {
@@ -391,7 +391,7 @@ internal static class DecrypterSettingsCommand
     private static void Pause()
     {
         Console.WriteLine();
-        Console.WriteLine("Enterキーを押すと終了します...");
+        Console.WriteLine("Press Enter to exit...");
         Console.ReadLine();
     }
 }

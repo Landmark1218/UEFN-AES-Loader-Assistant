@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace UEFNMapInstaller;
 
 /// <summary>
-/// LauncherInstalled.dat から Fortnite の paks フォルダを特定します。
+/// Locates the Fortnite paks folder from LauncherInstalled.dat.
 /// </summary>
 internal static class FortnitePathLocator
 {
@@ -34,19 +34,19 @@ internal static class FortnitePathLocator
                 if (paks is null) continue;
 
                 Console.WriteLine($"[PATH] LauncherInstalled.dat : {datPath}");
-                Console.WriteLine($"[PATH] インストール先        : {installDir}");
-                Console.WriteLine($"[PATH] paks フォルダ         : {paks}");
+                Console.WriteLine($"[PATH] Install location : {installDir}");
+                Console.WriteLine($"[PATH] Paks folder       : {paks}");
                 return paks;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PATH] {datPath} の読み取りに失敗: {ex.Message}");
+                Console.WriteLine($"[PATH] {datPath}: read failed: {ex.Message}");
             }
         }
 
         throw new DirectoryNotFoundException(
-            "Fortnite の paks フォルダが見つかりませんでした。\n" +
-            "  <ドライブ>:\\ProgramData\\Epic\\UnrealEngineLauncher\\LauncherInstalled.dat を確認してください。");
+            "Fortnite paks folder not found.\n" +
+            "  Please check <drive>:\\ProgramData\\Epic\\UnrealEngineLauncher\\LauncherInstalled.dat.");
     }
 
     private static IEnumerable<string> EnumerateDatPaths()
@@ -78,9 +78,9 @@ internal static class FortnitePathLocator
         return null;
     }
 
-    // ── UEFN エディタ実行ファイルの特定 ──────────────────────────────────
+    // -- Locate UEFN editor executable --
 
-    /// <summary>x64dbg で解析する対象の実行ファイル名。</summary>
+    /// <summary>Name of the executable targeted for analysis with x64dbg.</summary>
     public const string UnrealEditorExeName = "UnrealEditorFortnite-Win64-Shipping.exe";
 
     private static readonly string[] Win64RelativePaths =
@@ -90,7 +90,7 @@ internal static class FortnitePathLocator
     ];
 
     /// <summary>
-    /// LauncherInstalled.dat から Fortnite/UEFN のインストール先を列挙します。
+    /// Enumerates Fortnite/UEFN install locations from LauncherInstalled.dat.
     /// </summary>
     public static IEnumerable<string> EnumerateInstallDirs()
     {
@@ -100,7 +100,7 @@ internal static class FortnitePathLocator
 
             string? installDir = null;
             try { installDir = ReadFortniteInstallDir(datPath); }
-            catch { /* 壊れた dat は無視 */ }
+            catch { /* Ignore corrupted dat */ }
 
             if (!string.IsNullOrEmpty(installDir) && Directory.Exists(installDir))
                 yield return installDir!;
@@ -108,8 +108,8 @@ internal static class FortnitePathLocator
     }
 
     /// <summary>
-    /// UnrealEditorFortnite-Win64-Shipping.exe のフルパスを特定します。
-    /// 既知の Binaries\Win64 候補 → インストール先全体の再帰探索の順で探します。
+    /// Locates the full path of UnrealEditorFortnite-Win64-Shipping.exe.
+    /// Searches known Binaries\\Win64 candidates, then falls back to a full recursive search.
     /// </summary>
     public static string? FindUnrealEditorExe()
     {
@@ -125,7 +125,7 @@ internal static class FortnitePathLocator
                 }
             }
 
-            // 候補に無ければインストール先を再帰的に探索 (最終手段)
+            // Not in candidates — recursively search the install dir (last resort)
             var found = SafeFindFile(installDir, UnrealEditorExeName);
             if (found is not null)
             {
@@ -145,7 +145,7 @@ internal static class FortnitePathLocator
         }
         catch
         {
-            // アクセス拒否などは無視
+            // Ignore access-denied errors
         }
         return null;
     }
