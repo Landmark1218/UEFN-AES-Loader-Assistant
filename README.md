@@ -1,18 +1,18 @@
 # UEFN-AES-Loader-Assistant
 
-**UEFN-AES-Loader-Assistant**は、[UEFN-AES-Loader]([https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のセットアップを簡単にするためのアシストツールです。
+**UEFN-AES-Loader-Assistant**は、[UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のセットアップを簡単にするためのアシストツールです。
 
-このツール自体にはAESの復号機能は含まれておらず、[Deutsche Alman]([https://github.com/Aleman-sein-Vater) 氏が公開している **UEFN-AES-Loader** を利用しやすくすることを目的としています。
+このツール自体にはAESの復号機能は含まれておらず、[Deutsche Alman](https://github.com/Aleman-sein-Vater) 氏が公開している **UEFN-AES-Loader** を利用しやすくすることを目的としています。
 
 ## 必要なもの
 
 * UEFN PIE
-* [UEFN-AES-Loader]([https://github.com/Aleman-sein-Vater/UEFN-AES-Loader)
+* [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader)
 
 ## セットアップ
 
 1. 本ツールを起動します。
-2. [UEFN-AES-Loader]([https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のリポジトリから `UEFN-AES-Loader.dll` をダウンロードします。
+2. [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のリポジトリから `UEFN-AES-Loader.dll` をダウンロードします。
 3. ダウンロード後dllの名前を`amfrt64.dll`に変更します。
 4. ダウンロードしたDLLを `Win64` フォルダへ配置します。
 5. UEFN で一度PIEを起動し、その後終了します。
@@ -30,4 +30,4 @@
 また、マップデータが配置されているコンテンツドロワーの場所が自動で開かれるため、アセットへすぐにアクセスできます。
 
 ## Credit:
-[FNJPNews]([https://github.com/FNJPNews)さんの[UEFNDownloader]([https://github.com/FNJPNews/UEFNDownloader)をこのツールのコアとして使っています。
+[FNJPNews](https://github.com/FNJPNews)さんの[UEFNDownloader](https://github.com/FNJPNews/UEFNDownloader)をこのツールのコアとして使っています。
