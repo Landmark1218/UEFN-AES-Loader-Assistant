@@ -6,7 +6,7 @@
 
 ## 必要なもの
 
-* UEFN PIE
+* [PIE](https://discord.gg/zjurusqhpD)
 * [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader)
 
 ## セットアップ
