@@ -1,0 +1,27 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.7.11919.86 stable
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UEFNMapInstaller", "UEFNMapInstaller.csproj", "{21A70754-3CD5-5C53-8809-65E1B964D9EB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CUE4Parse", "..\CUE4Parse-master\CUE4Parse\CUE4Parse.csproj", "{F47D23C7-CB56-5929-E03B-AF44B3BC4D83}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{21A70754-3CD5-5C53-8809-65E1B964D9EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21A70754-3CD5-5C53-8809-65E1B964D9EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21A70754-3CD5-5C53-8809-65E1B964D9EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21A70754-3CD5-5C53-8809-65E1B964D9EB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F47D23C7-CB56-5929-E03B-AF44B3BC4D83}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F47D23C7-CB56-5929-E03B-AF44B3BC4D83}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F47D23C7-CB56-5929-E03B-AF44B3BC4D83}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F47D23C7-CB56-5929-E03B-AF44B3BC4D83}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
