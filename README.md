@@ -12,7 +12,8 @@
 ## セットアップ
 
 1. 本ツールを起動します。
-2. [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のリポジトリから `UEFN-AES-Loader.dll` をダウンロードします。
+2. [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のリポジトリから `UEFNContentKey.dll
+` をダウンロードします。
 3. ダウンロード後dllの名前を`amfrt64.dll`に変更します。
 4. ダウンロードしたDLLを `Win64` フォルダへ配置します。
 5. UEFN で一度PIEを起動し、その後終了します。
