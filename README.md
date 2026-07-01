@@ -6,6 +6,7 @@ This tool does not include AES decryption functionality itself. Its purpose is t
 
 ## Requirements
 
+* [Python](https://www.python.org/downloads/)
 * [PIE](https://discord.gg/zjurusqhpD)
 * [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader)
 
