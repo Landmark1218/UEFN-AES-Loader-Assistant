@@ -6,6 +6,7 @@ This tool does not include AES decryption functionality itself. Its purpose is t
 
 ## Requirements
 
+* [.NET](https://dotnet.microsoft.com/ja-jp/download/dotnet/thank-you/sdk-10.0.301-windows-x64-installer)
 * [Python](https://www.python.org/downloads/)
 * [PIE](https://discord.gg/zjurusqhpD)
 * [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader)
