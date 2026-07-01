@@ -14,7 +14,7 @@
 1. [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のリポジトリから `UEFNContentKey.dll`をダウンロードします。
 2. ダウンロード後dllの名前を`amfrt64.dll`に変更します。
 3. ダウンロードしたDLLを `FortniteGame/Binaries/Win64` フォルダへ配置します。
-4. UEFN で一度PIEを起動し、その後終了します。
+4. 一度PIEを起動し、その後終了します。
 
 ## 使用方法
 
