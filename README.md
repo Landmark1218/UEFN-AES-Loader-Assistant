@@ -1,32 +1,33 @@
 # UEFN-AES-Loader-Assistant
 
-**UEFN-AES-Loader-Assistant**は、[UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のセットアップを簡単にするためのアシストツールです。
+**UEFN-AES-Loader-Assistant** is an assistant tool that makes setting up [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) easier.
 
-このツール自体にはAESの復号機能は含まれておらず、[Deutsche Alman](https://github.com/Aleman-sein-Vater) 氏が公開している **UEFN-AES-Loader** を利用しやすくすることを目的としています。
+This tool does not include AES decryption functionality itself. Its purpose is to make it easier to use **UEFN-AES-Loader** published by [Deutsche Alman](https://github.com/Aleman-sein-Vater).
 
-## 必要なもの
+## Requirements
 
 * [PIE](https://discord.gg/zjurusqhpD)
 * [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader)
 
-## セットアップ
+## Setup
 
-1. [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) のリポジトリから `UEFNContentKey.dll`をダウンロードします。
-2. ダウンロード後dllの名前を`amfrt64.dll`に変更します。
-3. ダウンロードしたDLLを `FortniteGame/Binaries/Win64` フォルダへ配置します。
-4. 一度PIEを起動し、その後終了します。
+1. Download `UEFNContentKey.dll` from the [UEFN-AES-Loader](https://github.com/Aleman-sein-Vater/UEFN-AES-Loader) repository.
+2. Rename the downloaded DLL to `amfrt64.dll`.
+3. Place the DLL in the `FortniteGame/Binaries/Win64` folder.
+4. Launch PIE once, then close it.
 
-## 使用方法
+## Usage
 
-1. **UEFN-AES-Loader-Assistant**のexeを起動します。
-2. 読み込みたいマップのマップコード(例:1234-5678-9012)を入力します。
-3. 処理が完了するまで待ちます。
-4. 再度 UEFN で **PIE** を起動します。
+1. Launch the **UEFN-AES-Loader-Assistant** exe.
+2. Enter the map code of the map you want to load (e.g. 1234-5678-9012).
+3. Wait for the process to complete.
+4. Launch **PIE** in UEFN again.
 
-## 動作
+## How it works
 
-処理完了後にPIEを起動すると、対象のマップが自動でPIEにロードされます。
-また、マップデータが配置されているコンテンツドロワーの場所が自動で開かれるため、アセットへすぐにアクセスできます。
+When you launch PIE after the process completes, the target map is automatically loaded into PIE.
+The Content Drawer location where the map data is placed is also opened automatically, giving you immediate access to the assets.
 
-## Credit:
-[FNJPNews](https://github.com/FNJPNews)さんの[UEFNDownloader](https://github.com/FNJPNews/UEFNDownloader)をこのツールのコアとして使っています。
+## Credit
+
+Uses [FNJPNews](https://github.com/FNJPNews)'s [UEFNDownloader](https://github.com/FNJPNews/UEFNDownloader) as the core of this tool.
