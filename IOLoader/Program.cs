@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Http;
 using System.Reflection;
 using System.Security.Principal;
 using System.Text.Json;
@@ -20,6 +21,9 @@ if (OperatingSystem.IsWindows() && !IsRunningAsAdministrator())
 var quietEnv = new Dictionary<string, string> { ["UEFN_QUIET"] = "1" };
 var exeDir   = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
                ?? Directory.GetCurrentDirectory();
+KillFortniteProcesses(verbose: true);
+var watcherCts = new CancellationTokenSource();
+_ = Task.Run(() => FortniteWatcherLoop(watcherCts.Token));
 
 var scriptPath = Path.Combine(exeDir, "uefn_downloader.py");
 if (!File.Exists(scriptPath))
@@ -148,7 +152,8 @@ if (menuChoice == 2)
     Console.ForegroundColor = ConsoleColor.Green;
     Console.WriteLine("Removal complete.");
     Console.ResetColor();
-    Pause();
+    watcherCts.Cancel();
+    AutoClose(delaySeconds: 3);
     return 0;
 }
 
@@ -293,9 +298,17 @@ if (iniPath is not null)
 // -- Download game data --
 Console.WriteLine();
 Console.WriteLine("Downloading game data...");
-int dlCode = PythonRunner.Run(scriptPath,
-    ["download", mapCode, "--data-dir", authDir, "--out", dataDir, "--skip-aes-key"],
-    exeDir, quietEnv);
+var fortniteVersion = await GetLatestFortniteVersion();
+var dlArgs = new List<string>
+{
+    "download", mapCode, "--data-dir", authDir, "--out", dataDir, "--skip-aes-key",
+};
+if (!string.IsNullOrEmpty(fortniteVersion))
+{
+    dlArgs.AddRange(["--fortnite-user-agent", $"Fortnite/{fortniteVersion} Windows/10.0.26100.8162.64bit"]);
+    Console.WriteLine($"[UA] Fortnite version: {fortniteVersion}");
+}
+int dlCode = PythonRunner.Run(scriptPath, [.. dlArgs], exeDir, quietEnv);
 
 if (dlCode != 0)
 {
@@ -452,7 +465,8 @@ else
     }
 }
 
-Pause();
+watcherCts.Cancel();
+AutoClose(delaySeconds: 3);
 return 0;
 
 // -- Helpers --
@@ -538,6 +552,15 @@ static void Pause()
     Console.ReadLine();
 }
 
+static async Task<string?> GetLatestFortniteVersion()
+{
+        using var client = new HttpClient();
+        client.Timeout = TimeSpan.FromSeconds(10);
+        var response = await client.GetStringAsync("https://uedb.dev/svc/api/v1/fortnite/mappings");
+        using var doc = JsonDocument.Parse(response);
+        return doc.RootElement.GetProperty("version").GetString();
+}
+
 static void ClearReadOnly(string path)
 {
     try
@@ -577,7 +600,74 @@ static void SaveSignatureCache(string cachePath, SignatureCache cache)
     }
     catch (Exception ex) { Warn($"Failed to save signature cache: {ex.Message}"); }
 }
+static void KillFortniteProcesses(bool verbose)
+{
+    var killed = new List<string>();
+    try
+    {
+        foreach (var proc in Process.GetProcesses())
+        {
+            try
+            {
+                if (proc.ProcessName.Contains("Fortnite", StringComparison.OrdinalIgnoreCase))
+                {
+                    var name = proc.ProcessName;
+                    proc.Kill(entireProcessTree: true);
+                    proc.WaitForExit(3000);
+                    killed.Add(name);
+                }
+            }
+            catch {}
+            finally { proc.Dispose(); }
+        }
+    }
+    catch { }
 
+    if (verbose && killed.Count > 0)
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        foreach (var n in killed)
+            Console.WriteLine($"[GUARD] Killed: {n}");
+        Console.ResetColor();
+    }
+}
+static async Task FortniteWatcherLoop(CancellationToken ct)
+{
+    try
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            await Task.Delay(1000, ct);
+            KillFortniteProcesses(verbose: true);
+        }
+    }
+    catch (OperationCanceledException) { }
+    catch { }
+}
+
+static void AutoClose(int delaySeconds = 3)
+{
+    Console.WriteLine();
+    Console.WriteLine($"Closing automatically in {delaySeconds} seconds... (press Enter to close now)");
+    var cts = new CancellationTokenSource();
+    var countdownTask = Task.Run(async () =>
+    {
+        for (int i = delaySeconds; i > 0; i--)
+        {
+            if (cts.Token.IsCancellationRequested) return;
+            Console.Write($"\r  {i}... ");
+            await Task.Delay(1000, cts.Token).ContinueWith(_ => { });
+        }
+    });
+    var inputTask = Task.Run(() =>
+    {
+        try { Console.ReadLine(); } catch { }
+    });
+
+    Task.WhenAny(countdownTask, inputTask).GetAwaiter().GetResult();
+    cts.Cancel();
+    Console.WriteLine();
+}
 static bool IsRunningAsAdministrator()
 {
     using var identity = WindowsIdentity.GetCurrent();
